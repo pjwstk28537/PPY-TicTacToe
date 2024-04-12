@@ -1,50 +1,115 @@
-import os
 
-class TicTacToe:
-    def __init__(self):
-        self.board = [[' ' for _ in range(3)] for _ in range(3)]
-        self.current_player = 'X'
+import curses
 
-    def display_board(self):
-        os.system('cls' if os.name == 'nt' else 'clear')  # Clear the terminal
-        print("  0 | 1 | 2 ")
-        print(" -----------")
-        for i, row in enumerate(self.board):
-            print(f"{i} {' | '.join(row)} ")
-            if i < 2:
-                print(" -----------")
+# Function to initialize the curses screen
+def initialize_screen():
+    screen = curses.initscr()
+    curses.curs_set(0)  # Hide cursor
+    screen.keypad(True)  # Enable keypad mode
+    curses.noecho()      # Don't echo keypresses
+    return screen
 
-    def make_move(self, row, col):
-        if self.board[row][col] == ' ':
-            self.board[row][col] = self.current_player
-            return True
-        else:
-            return False
+# Function to create the game board
+def create_board(size):
+    board = [[' ' for _ in range(size)] for _ in range(size)]
+    return board
 
-    def switch_player(self):
-        self.current_player = 'O' if self.current_player == 'X' else 'X'
+# Function to display the game board
+def display_board(screen, board, cursor_x, cursor_y):
+    screen.clear()
+    for y in range(len(board)):
+        for x in range(len(board[y])):
+            cell = board[y][x]
+            screen.addstr(y * 2, x * 4, f" {cell} |")
+        screen.addstr(y * 2 + 1, 0, "----" * len(board) + "-")
+    screen.addstr(cursor_y * 2, cursor_x * 4, f"({board[cursor_y][cursor_x]})", curses.A_REVERSE)
+    screen.refresh()
 
-def get_input(prompt):
-    print(prompt)
-    return input()
-
-def main():
-    game = TicTacToe()
-    game.display_board()
-
+# Function to handle player input and navigation
+def handle_input(screen, board, cursor_x, cursor_y):
     while True:
-        row = int(get_input("Enter row (0, 1, 2): "))
-        col = int(get_input("Enter column (0, 1, 2): "))
+        key = screen.getch()
+        if key == curses.KEY_UP and cursor_y > 0:
+            cursor_y -= 1
+        elif key == curses.KEY_DOWN and cursor_y < len(board) - 1:
+            cursor_y += 1
+        elif key == curses.KEY_LEFT and cursor_x > 0:
+            cursor_x -= 1
+        elif key == curses.KEY_RIGHT and cursor_x < len(board[0]) - 1:
+            cursor_x += 1
+        elif key == ord('\n'):  # Enter key
+            if board[cursor_y][cursor_x] == ' ':
+                return cursor_x, cursor_y
+        display_board(screen, board, cursor_x, cursor_y)  # Update display with new cursor position
 
-        if row < 0 or row > 2 or col < 0 or col > 2:
-            print("Invalid input. Row and column must be between 0 and 2.")
-            continue
+# Function to check if a player has won
+def check_winner(board, player):
+    size = len(board)
+    # Check rows
+    for row in board:
+        if all(cell == player for cell in row):
+            return True
+    # Check columns
+    for col in range(size):
+        if all(board[row][col] == player for row in range(size)):
+            return True
+    # Check diagonals
+    if all(board[i][i] == player for i in range(size)):
+        return True
+    if all(board[i][size - i - 1] == player for i in range(size)):
+        return True
+    return False
 
-        if game.make_move(row, col):
-            game.display_board()
-            game.switch_player()
-        else:
-            print("That cell is already occupied. Try again.")
+# Function to check for a draw
+def check_draw(board):
+    return all(cell != ' ' for row in board for cell in row)
 
+
+# Main function to run the game
+def main(screen):
+    # Initialize game parameters
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    screen.clear()
+    screen.addstr("Enter the size of the board (5-25): ")
+    screen.refresh()
+    size = int(screen.getstr().decode())
+    screen.addstr("Enter the number of players (2-4): ")
+    screen.refresh()
+    num_players = int(screen.getstr().decode())
+    players = [chr(ord('X') + i) for i in range(num_players)]  # Assign symbols to players
+
+    # Get player names
+    player_names = []
+    for i in range(num_players):
+        screen.addstr(f"Enter the name of player {i+1}: ")
+        screen.refresh()
+        name = screen.getstr().decode()
+        player_names.append(name)
+
+    # Initialize game board and cursor position
+    board = create_board(size)
+    cursor_x, cursor_y = 0, 0
+
+    # Main game loop
+    turn = 0
+    while True:
+        current_player = players[turn % num_players]
+        screen.addstr(f"\n{player_names[turn % num_players]}'s turn ({current_player})\n")
+        display_board(screen, board, cursor_x, cursor_y)
+        x, y = handle_input(screen, board, cursor_x, cursor_y)
+        board[y][x] = current_player
+        if check_winner(board, current_player):
+            screen.addstr(f"\n{player_names[turn % num_players]} wins!")
+            break
+        elif check_draw(board):
+            screen.addstr("\nIt's a draw!")
+            break
+        turn += 1
+        screen.refresh()
+        curses.napms(500)  # Delay between turns
+
+
+# Run the game
 if __name__ == "__main__":
-    main()
+    curses.wrapper(main)
