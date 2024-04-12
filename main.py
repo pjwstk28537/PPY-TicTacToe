@@ -64,8 +64,26 @@ def check_winner(board, player):
 def check_draw(board):
     return all(cell != ' ' for row in board for cell in row)
 
+# Function to check if a player has won
+def check_winner(board, player):
+    size = len(board)
+    # Check rows
+    for row in board:
+        if all(cell == player for cell in row):
+            return True
+    # Check columns
+    for col in range(size):
+        if all(board[row][col] == player for row in range(size)):
+            return True
+    # Check diagonals
+    if all(board[i][i] == player for i in range(size)):
+        return True
+    if all(board[i][size - i - 1] == player for i in range(size)):
+        return True
+    return False
 
-# Main function to run the game
+
+## Main function to run the game
 def main(screen):
     # Initialize game parameters
     curses.start_color()
@@ -93,6 +111,7 @@ def main(screen):
 
     # Main game loop
     turn = 0
+    winner = None
     while True:
         current_player = players[turn % num_players]
         screen.addstr(f"\n{player_names[turn % num_players]}'s turn ({current_player})\n")
@@ -100,16 +119,21 @@ def main(screen):
         x, y = handle_input(screen, board, cursor_x, cursor_y)
         board[y][x] = current_player
         if check_winner(board, current_player):
-            screen.addstr(f"\n{player_names[turn % num_players]} wins!")
+            winner = player_names[turn % num_players]
             break
         elif check_draw(board):
-            screen.addstr("\nIt's a draw!")
+            winner = "Draw"
             break
         turn += 1
         screen.refresh()
         curses.napms(500)  # Delay between turns
 
+    return winner
 
 # Run the game
 if __name__ == "__main__":
-    curses.wrapper(main)
+    winner = curses.wrapper(main)
+    if winner == "Draw":
+        print("The game ended in a draw!")
+    else:
+        print(f"Congratulations, {winner} wins!")
